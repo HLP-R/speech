@@ -37,14 +37,20 @@
 # Authors: Baris Akgun
 # Edited: Vivian Chu, 8-29-16: rosparam config values
 
-import rospy
-from std_msgs.msg import String
-from hlpr_speech_msgs.msg import StampedString, SpeechCommand
-import sys, os
-from pocketsphinx.pocketsphinx import *
-from sphinxbase.sphinxbase import *
+import os
+import sys
+import time
+import wave
+
 import pyaudio
 import rospkg
+import rospy
+from pocketsphinx.pocketsphinx import *
+from sphinxbase.sphinxbase import *
+from std_msgs.msg import String
+
+from hlpr_speech_msgs.msg import SpeechCommand, StampedString
+
 from .speech_listener import SpeechListener
 
 # Global values specific to speech
@@ -54,12 +60,13 @@ BUFFER_SIZE = 6144
 
 class SpeechRecognizer():
 
-    def __init__(self):
+    def __init__(self, subnode = False):
 
-        # Intialize the node
-        rospy.init_node("hlpr_speech_recognizer")
+        if not subnode:
+            # Intialize the node
+            rospy.init_node("hlpr_speech_recognizer")
 
-        # get an instance of RosPack with the default search paths
+        # Get an instance of RosPack with the default search paths
         rospack = rospkg.RosPack()
 
         # Default data files for speech dictionaries
@@ -108,17 +115,24 @@ class SpeechRecognizer():
         rospy.loginfo("Finished initializing speech recognizer")
 
         # Start recognizing
-        self.begin_rec()
+        if not subnode:
+            self.begin_rec()
 
-    def begin_rec(self):
-
-        p = pyaudio.PyAudio()
-        stream = p.open(format=pyaudio.paInt16,
-                                        channels=N_CHANNELS,
-                                        rate=RATE,
-                                        input=True,
-                                        frames_per_buffer=BUFFER_SIZE)
-        stream.start_stream()
+    def begin_rec(self, file = None):
+        if file:
+            # Audio input from file
+            waveFile = wave.open(file, "rb")
+            rospy.loginfo("Loading audio data from {}".format(file))
+        else:
+            # Audio input from microphone
+            p = pyaudio.PyAudio()
+            stream = p.open(format=pyaudio.paInt16,
+                                            channels=N_CHANNELS,
+                                            rate=RATE,
+                                            input=True,
+                                            frames_per_buffer=BUFFER_SIZE)
+            stream.start_stream()
+            rospy.loginfo("Recording live audio")
 
         # Process audio chunk by chunk. On keyword detected perform action and restart search
         decoder = Decoder(self.config)
@@ -126,7 +140,11 @@ class SpeechRecognizer():
 
         while not rospy.is_shutdown():
             selectedSegment = None
-            buf = stream.read(BUFFER_SIZE)
+            if file:
+                buf = waveFile.readframes(BUFFER_SIZE)
+            else:
+                buf = stream.read(BUFFER_SIZE)
+
             if buf:
                 decoder.process_raw(buf, False, False)
             else:
