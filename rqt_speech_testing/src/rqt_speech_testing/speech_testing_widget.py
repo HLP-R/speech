@@ -6,7 +6,7 @@ import rospkg
 import rospy
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, Signal, qWarning
-from python_qt_binding.QtGui import (QFileDialog, QHeaderView, QIcon,
+from python_qt_binding.QtGui import (QApplication, QFileDialog, QHeaderView, QIcon,
                                      QMessageBox, QTreeWidgetItem, QWidget)
 
 from hlpr_speech_recognition.speech_recognizer import SpeechRecognizer
@@ -42,16 +42,28 @@ class SpeechTestWidget(QWidget):
         self.recordButton.toggled.connect(self.recordAudio)
 
     def openAudio(self):
-        pass
+        location = QFileDialog.getOpenFileName(filter="*.wav;;*")[0]
+        if not location:
+            return
+        self.location.setText(location)
+        self.loadAudio()
 
     def loadAudio(self):
-        pass
+        location = self.location.text()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.recognizer.begin_rec(file=location)
+        QApplication.restoreOverrideCursor()
 
     def recordAudio(self, state):
         if state:
             threading.Thread(target=self.recordAudioThread).start()
         else:
             self.recognizer.end_rec()
+
+    def loadAudioThread(self, file):
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.recognizer.begin_rec(file=file)
+        QApplication.restoreOverrideCursor()
 
     def recordAudioThread(self):
         self.recognizer.begin_rec()
