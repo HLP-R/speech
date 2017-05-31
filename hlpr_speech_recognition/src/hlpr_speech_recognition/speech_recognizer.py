@@ -71,17 +71,17 @@ class SpeechRecognizer():
 
         # Default data files for speech dictionaries
         default_modeldir = "/usr/local/share/pocketsphinx/model"
-        default_dict_path = rospack.get_path('hlpr_speech_recognition') + '/data/kps.dic'
-        default_kps_path = rospack.get_path('hlpr_speech_recognition') + '/data/kps.txt'
+        default_dict_path = rospack.get_path("hlpr_speech_recognition") + "/data/kps.dic"
+        default_kps_path = rospack.get_path("hlpr_speech_recognition") + "/data/kps.txt"
         default_rec_thresh = 300  #higher reduces false positives but makes it harder to detect
-        default_pub_topic = 'hlpr_speech_commands'
+        default_pub_topic = "hlpr_speech_commands"
 
         # Load model and dictionary values from param server
         modeldir = rospy.get_param("~model_dir", default_modeldir)
         dict_path = rospy.get_param("~dict_path", default_dict_path)
         kps_path = rospy.get_param("~kps_path", default_kps_path)
         self.verbose = rospy.get_param("/speech/verbose", True) # default prints out more info
-        self.str_msg = rospy.get_param(SpeechListener.COMMAND_TYPE, 'StampedString') # True if message is only str, false includes header
+        self.str_msg = rospy.get_param(SpeechListener.COMMAND_TYPE, "StampedString") # True if message is only str, false includes header
         self.cmd_pub_topic = rospy.get_param(SpeechListener.COMMAND_TOPIC_PARAM, default_pub_topic)
 
         # Parameters for recognition
@@ -89,25 +89,25 @@ class SpeechRecognizer():
 
         # Create a decoder with certain model
         self.config = Decoder.default_config()
-        self.config.set_string('-hmm', os.path.join(modeldir, 'en-us/en-us'))
+        self.config.set_string("-hmm", os.path.join(modeldir, "en-us/en-us"))
 
         # Configure the dictionary - not used?
-        #lm_path = rospack.get_path('hlpr_speech_recognition') + '/data/kps.lm'
-        #self.config.set_string('-lm', lm_path)
+        #lm_path = rospack.get_path("hlpr_speech_recognition") + "/data/kps.lm"
+        #self.config.set_string("-lm", lm_path)
 
         # Configuration settings for speech detection
-        self.config.set_string('-dict', dict_path)
-        self.config.set_string('-kws', kps_path) #A file with keyphrases to spot, one per line
-        self.config.set_float('-kws_threshold', 1e-2) #Threshold for p(hyp)/p(alternatives) ratio
-        self.config.set_float('-kws_plp',1e-10 ) #Phone loop probability for keyword spotting
-        #self.config.set_float('-kws_delay', 1) #Delay to wait for best detection score
+        self.config.set_string("-dict", dict_path)
+        self.config.set_string("-kws", kps_path) #A file with keyphrases to spot, one per line
+        self.config.set_float("-kws_threshold", 1e-2) #Threshold for p(hyp)/p(alternatives) ratio
+        self.config.set_float("-kws_plp",1e-10 ) #Phone loop probability for keyword spotting
+        #self.config.set_float("-kws_delay", 1) #Delay to wait for best detection score
 
         # Check if we dump extra information to null
         if not self.verbose:
-            self.config.set_string('-logfn','/dev/null')
+            self.config.set_string("-logfn","/dev/null")
 
         # Setup the publisher
-        if self.str_msg == 'String':
+        if self.str_msg == "String":
             self.pub = rospy.Publisher(self.cmd_pub_topic, String, queue_size=1)
         else:
             self.pub = rospy.Publisher(self.cmd_pub_topic, StampedString, queue_size=1)
@@ -175,7 +175,7 @@ class SpeechRecognizer():
                     # Get the time stamp for the message
                     now = rospy.get_rostime()
 
-                    if self.str_msg == 'String':
+                    if self.str_msg == "String":
                         keyphrase = selectedSegment.word
                     else:
                         keyphrase = StampedString()
@@ -184,7 +184,7 @@ class SpeechRecognizer():
 
                     self.pub.publish(keyphrase)
                 else:
-                    print 'No selected segment or not confident enough in the detected keyword'
+                    print "No selected segment or not confident enough in the detected keyword"
 
                 decoder.end_utt()
                 decoder.start_utt()
@@ -193,5 +193,5 @@ class SpeechRecognizer():
     def end_rec(self):
         self.should_stop_recording = True
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     SpeechRecognizer()
