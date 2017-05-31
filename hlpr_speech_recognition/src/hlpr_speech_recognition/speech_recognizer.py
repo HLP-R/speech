@@ -150,8 +150,17 @@ class SpeechRecognizer():
                 break
             if decoder.hyp() != None:
                 hypothesis = decoder.hyp()
-                maxProb = 0
+                maxProb = float("-inf")
                 for seg in decoder.seg():
+                    thresholdTooLow = False
+                    for seg2 in decoder.seg():
+                        diff = seg.prob - seg2.prob
+                        if diff != 0 and diff < self.RECOGNITION_THRESHOLD:
+                            thresholdTooLow = True
+                            break
+                    if thresholdTooLow:
+                        continue
+
                     if seg.prob > maxProb:
                         selectedSegment = seg
                         maxProb = seg.prob
@@ -159,26 +168,23 @@ class SpeechRecognizer():
                     print ([(seg.word, seg.prob, seg.start_frame, seg.end_frame) for seg in decoder.seg()])
 
                 if selectedSegment:
-                    if selectedSegment.prob > self.RECOGNITION_THRESHOLD:
-                        if not hypothesis.hypstr == selectedSegment.word:
-                            print "Hypothesis and the selected segment do not match! Going with the selected segment"
+                    if not hypothesis.hypstr == selectedSegment.word:
+                        print "Hypothesis and the selected segment do not match! Going with the selected segment"
 
-                        print ("Detected keyword: " + selectedSegment.word)
-                        # Get the time stamp for the message
-                        now = rospy.get_rostime()
+                    print ("Detected keyword: " + selectedSegment.word)
+                    # Get the time stamp for the message
+                    now = rospy.get_rostime()
 
-                        if self.str_msg == 'String':
-                            keyphrase = selectedSegment.word
-                        else:
-                            keyphrase = StampedString()
-                            keyphrase.keyphrase = selectedSegment.word
-                            keyphrase.stamp = rospy.get_rostime()
+                    if self.str_msg == 'String':
+                        keyphrase = selectedSegment.word
+                    else:
+                        keyphrase = StampedString()
+                        keyphrase.keyphrase = selectedSegment.word
+                        keyphrase.stamp = rospy.get_rostime()
 
-                        self.pub.publish(keyphrase)
-                    elif self.verbose:
-                        print "Not confident enough in the detected keyword"
+                    self.pub.publish(keyphrase)
                 else:
-                    print 'No Selected Segment'
+                    print 'No selected segment or not confident enough in the detected keyword'
 
                 decoder.end_utt()
                 decoder.start_utt()
