@@ -117,8 +117,10 @@ class SpeechRecognizer():
         # Start recognizing
         if not subnode:
             self.begin_rec()
+        self.should_stop_recording = False
 
     def begin_rec(self, file = None):
+        self.should_stop_recording = False
         if file:
             # Audio input from file
             waveFile = wave.open(file, "rb")
@@ -138,7 +140,7 @@ class SpeechRecognizer():
         decoder = Decoder(self.config)
         decoder.start_utt()
 
-        while not rospy.is_shutdown():
+        while not rospy.is_shutdown() and not self.should_stop_recording:
             selectedSegment = None
             if file:
                 buf = waveFile.readframes(BUFFER_SIZE)
@@ -183,6 +185,10 @@ class SpeechRecognizer():
 
                 decoder.end_utt()
                 decoder.start_utt()
+        rospy.loginfo("Stopped speech recognition")
+
+    def end_rec(self):
+        self.should_stop_recording = True
 
 if __name__ == '__main__':
     SpeechRecognizer()
