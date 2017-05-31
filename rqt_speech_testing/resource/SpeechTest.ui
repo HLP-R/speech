@@ -75,7 +75,18 @@
     </widget>
    </item>
    <item>
-    <widget class="QTreeView" name="outputTree"/>
+    <widget class="QTreeWidget" name="outputTree">
+     <column>
+      <property name="text">
+       <string>Info</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Recognized Text</string>
+      </property>
+     </column>
+    </widget>
    </item>
   </layout>
  </widget>
