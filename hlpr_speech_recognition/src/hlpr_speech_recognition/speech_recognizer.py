@@ -123,7 +123,7 @@ class SpeechRecognizer():
         self.should_stop_recording = False
         if file:
             # Audio input from file
-            waveFile = wave.open(file, "rb")
+            stream = open(file, "rb")
             rospy.loginfo("Loading audio data from {}".format(file))
         else:
             # Audio input from microphone
@@ -142,10 +142,7 @@ class SpeechRecognizer():
 
         while not rospy.is_shutdown() and not self.should_stop_recording:
             selectedSegment = None
-            if file:
-                buf = waveFile.readframes(BUFFER_SIZE)
-            else:
-                buf = stream.read(BUFFER_SIZE)
+            buf = stream.read(BUFFER_SIZE)
 
             if buf:
                 decoder.process_raw(buf, False, False)
