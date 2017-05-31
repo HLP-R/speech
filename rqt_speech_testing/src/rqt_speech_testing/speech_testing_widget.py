@@ -42,7 +42,7 @@ class SpeechTestWidget(QWidget):
         self.recordButton.toggled.connect(self.recordAudio)
 
     def openAudio(self):
-        location = QFileDialog.getOpenFileName(filter="*.wav;;*")[0]
+        location = QFileDialog.getOpenFileName(filter="*.wav;;*", directory=os.path.dirname(self.location.text()))[0]
         if not location:
             return
         self.location.setText(location)
