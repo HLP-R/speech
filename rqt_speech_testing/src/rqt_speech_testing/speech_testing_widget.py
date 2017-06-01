@@ -80,8 +80,10 @@ class SpeechTestWidget(QWidget):
         location = self.location.text()
         if os.path.isdir(location):
             locations = [os.path.join(location, f) for f in os.listdir(location) if os.path.isfile(os.path.join(location, f)) and f.split(".")[-1] == "wav"]
-        else:
+        elif os.path.isfile(location):
             locations = [location]
+        else:
+            return
         
         if len(locations) == 0 or len(locations[0]) == 0:
             return
