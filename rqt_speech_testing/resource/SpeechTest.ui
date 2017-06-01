@@ -16,6 +16,26 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="location"/>
+     </item>
+     <item row="1" column="3">
+      <widget class="QPushButton" name="openFolderButton">
+       <property name="text">
+        <string> Open Folder</string>
+       </property>
+       <property name="icon">
+        <iconset theme="folder"/>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Load an audio file</string>
+       </property>
+      </widget>
+     </item>
      <item row="1" column="2">
       <widget class="QPushButton" name="openLocationButton">
        <property name="text">
@@ -24,16 +44,6 @@
        <property name="icon">
         <iconset theme="document-open">
          <normaloff>.</normaloff>.</iconset>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLineEdit" name="location"/>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Load an audio file</string>
        </property>
       </widget>
      </item>

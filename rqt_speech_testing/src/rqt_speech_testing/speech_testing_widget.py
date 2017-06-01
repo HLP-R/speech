@@ -37,21 +37,37 @@ class SpeechTestWidget(QWidget):
         recog_topic = rospy.get_param("/speech/publish_topic", "hlpr_speech_commands")
         msg_type = eval(rospy.get_param("/speech/command_type", "StampedString")) # True if message is only str, false includes header
         rospy.Subscriber(recog_topic, msg_type, self.speechCallback)
+
         self.currentRootItem = None
 
         # Set icons for buttons because they don't persist from Qt creator
         self.openLocationButton.setIcon(QIcon.fromTheme("document-open"))
+        self.openFolderButton.setIcon(QIcon.fromTheme("folder"))
         self.recordButton.setIcon(QIcon.fromTheme("media-record"))
 
         # Attach event handlers
         self.openLocationButton.clicked[bool].connect(self.openAudio)
+        self.openFolderButton.clicked[bool].connect(self.openAudioFolder)
         self.location.returnPressed.connect(self.loadAudio)
         self.recordButton.toggled.connect(self.recordAudio)
+        self.outputTree.itemDoubleClicked.connect(self.handleDoubleClick)
 
         # Set sizing options for tree widget headers
         self.outputTree.header().setStretchLastSection(False)
         self.outputTree.header().setResizeMode(0, QHeaderView.Stretch)
         self.outputTree.header().setResizeMode(1, QHeaderView.ResizeToContents)
+
+    def handleDoubleClick(self, item, index):
+        if not item.parent():
+            root = self.outputTree.invisibleRootItem()
+            root.removeChild(item)
+
+    def openAudioFolder(self):
+        location = QFileDialog.getExistingDirectory(directory=os.path.dirname(self.location.text()))
+        if not location:
+            return
+        self.location.setText(location)
+        self.loadAudio()
 
     def openAudio(self):
         location = QFileDialog.getOpenFileName(filter="*.wav;;*", directory=os.path.dirname(self.location.text()))[0]
@@ -62,14 +78,22 @@ class SpeechTestWidget(QWidget):
 
     def loadAudio(self):
         location = self.location.text()
-
-        self.currentRootItem = QTreeWidgetItem()
-        self.currentRootItem.setText(0, location)
-        self.outputTree.addTopLevelItem(self.currentRootItem)
-        self.currentRootItem.setExpanded(True)
+        if os.path.isdir(location):
+            locations = [os.path.join(location, f) for f in os.listdir(location) if os.path.isfile(os.path.join(location, f)) and f.split(".")[-1] == "wav"]
+        else:
+            locations = [location]
+        
+        if len(locations) == 0 or len(locations[0]) == 0:
+            return
 
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        self.recognizer.begin_rec(file=location)
+        for location in sorted(locations):
+            self.currentRootItem = QTreeWidgetItem()
+            self.currentRootItem.setText(0, location)
+            self.outputTree.addTopLevelItem(self.currentRootItem)
+            self.currentRootItem.setExpanded(True)
+
+            self.recognizer.begin_rec(file=location)
         QApplication.restoreOverrideCursor()
 
     def recordAudio(self, state):
