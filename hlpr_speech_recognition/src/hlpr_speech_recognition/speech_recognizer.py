@@ -186,6 +186,15 @@ class SpeechRecognizer():
                 else:
                     print "No selected segment or not confident enough in the detected keyword"
 
+                    if self.str_msg == "String":
+                        keyphrase = "UNKNOWN"
+                    else:
+                        keyphrase = StampedString()
+                        keyphrase.keyphrase = "UNKNOWN"
+                        keyphrase.stamp = rospy.get_rostime()
+
+                    self.pub.publish(keyphrase)
+
                 decoder.end_utt()
                 decoder.start_utt()
         rospy.loginfo("Stopped speech recognition")
