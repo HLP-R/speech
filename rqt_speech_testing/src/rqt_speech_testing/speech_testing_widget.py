@@ -1,3 +1,4 @@
+import json
 import os
 import signal
 import threading
@@ -45,6 +46,8 @@ class SpeechTestWidget(QWidget):
         self.openLocationButton.setIcon(QIcon.fromTheme("document-open"))
         self.openFolderButton.setIcon(QIcon.fromTheme("folder"))
         self.recordButton.setIcon(QIcon.fromTheme("media-record"))
+        self.clearButton.setIcon(QIcon.fromTheme("edit-delete"))
+        self.exportButton.setIcon(QIcon.fromTheme("document-save-as"))
 
         # Attach event handlers
         self.openLocationButton.clicked[bool].connect(self.openAudio)
@@ -52,6 +55,8 @@ class SpeechTestWidget(QWidget):
         self.location.returnPressed.connect(self.loadAudio)
         self.recordButton.toggled.connect(self.recordAudio)
         self.outputTree.itemDoubleClicked.connect(self.handleDoubleClick)
+        self.clearButton.clicked[bool].connect(lambda: self.outputTree.clear())
+        self.exportButton.clicked[bool].connect(self.export)
 
         # Set sizing options for tree widget headers
         self.outputTree.header().setStretchLastSection(False)
@@ -80,13 +85,12 @@ class SpeechTestWidget(QWidget):
     def loadAudio(self):
         location = self.location.text()
         if os.path.isdir(location):
-            self.outputTree.clear()            
             locations = [os.path.join(location, f) for f in os.listdir(location) if os.path.isfile(os.path.join(location, f)) and f.split(".")[-1] == "wav"]
         elif os.path.isfile(location):
             locations = [location]
         else:
             return
-        
+
         if len(locations) == 0 or len(locations[0]) == 0:
             return
 
@@ -130,7 +134,7 @@ class SpeechTestWidget(QWidget):
 
     def recordAudioThread(self, file=None):
         self.recognizer.begin_rec(file=file)
-    
+
     def speechCallback(self, msg):
         if msg._type == "hlpr_speech_msgs/StampedString":
             last_string = msg.keyphrase
@@ -144,3 +148,25 @@ class SpeechTestWidget(QWidget):
         self.currentRootItem.addChild(item)
         self.outputTree.scrollToItem(item)
         self.waitingOnResult = False
+
+    def export(self):
+        location = QFileDialog.getSaveFileName(filter = "*.json;;*")[0]
+        if not location:
+            return
+        if location.split(".")[-1] != "json":
+            location = location + ".json"
+        
+        output = []
+        root = self.outputTree.invisibleRootItem()
+        
+        for i in range(root.childCount()):
+            item = root.child(i)
+            data = {"name": item.text(0), "recognizedText": []}
+            for k in range(item.childCount()):
+                subitem = item.child(k)
+                subdata = {"timestamp": subitem.text(0), "text": subitem.text(1)}
+                data["recognizedText"].append(subdata)
+            output.append(data)
+
+        with open(location, "w") as jsonFile:
+            jsonFile.write(json.dumps(output, indent=4))

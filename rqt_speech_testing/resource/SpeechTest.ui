@@ -22,7 +22,7 @@
      <item row="1" column="3">
       <widget class="QPushButton" name="openFolderButton">
        <property name="text">
-        <string> Open Folder</string>
+        <string> Open folder</string>
        </property>
        <property name="icon">
         <iconset theme="folder"/>
@@ -97,6 +97,56 @@
       </property>
      </column>
     </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="clearButton">
+       <property name="text">
+        <string> Clear output</string>
+       </property>
+       <property name="icon">
+        <iconset theme="edit-delete"/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="exportButton">
+       <property name="text">
+        <string> Export output</string>
+       </property>
+       <property name="icon">
+        <iconset theme="document-save-as"/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
