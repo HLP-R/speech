@@ -39,6 +39,7 @@ class SpeechTestWidget(QWidget):
         rospy.Subscriber(recog_topic, msg_type, self.speechCallback)
 
         self.currentRootItem = None
+        self.waitingOnResult = False
 
         # Set icons for buttons because they don't persist from Qt creator
         self.openLocationButton.setIcon(QIcon.fromTheme("document-open"))
@@ -79,6 +80,7 @@ class SpeechTestWidget(QWidget):
     def loadAudio(self):
         location = self.location.text()
         if os.path.isdir(location):
+            self.outputTree.clear()            
             locations = [os.path.join(location, f) for f in os.listdir(location) if os.path.isfile(os.path.join(location, f)) and f.split(".")[-1] == "wav"]
         elif os.path.isfile(location):
             locations = [location]
@@ -93,9 +95,20 @@ class SpeechTestWidget(QWidget):
             self.currentRootItem = QTreeWidgetItem()
             self.currentRootItem.setText(0, location)
             self.outputTree.addTopLevelItem(self.currentRootItem)
+            self.outputTree.scrollToItem(self.currentRootItem)
             self.currentRootItem.setExpanded(True)
 
-            self.recognizer.begin_rec(file=location)
+            self.waitingOnResult = True
+            threading.Thread(target=self.recordAudioThread, kwargs={"file": location}).start()
+
+            waiting = 0
+            while self.waitingOnResult:
+                time.sleep(0.1)
+                waiting += 0.1
+                if (waiting > 1):
+                    self.waitingOnResult = False
+                    rospy.loginfo("{} didn't finish recognition before timeout".format(location))
+                    break
         QApplication.restoreOverrideCursor()
 
     def recordAudio(self, state):
@@ -103,6 +116,7 @@ class SpeechTestWidget(QWidget):
             self.currentRootItem = QTreeWidgetItem()
             self.currentRootItem.setText(0, "Recording")
             self.outputTree.addTopLevelItem(self.currentRootItem)
+            self.outputTree.scrollToItem(self.currentRootItem)
             self.currentRootItem.setExpanded(True)
 
             threading.Thread(target=self.recordAudioThread).start()
@@ -114,8 +128,8 @@ class SpeechTestWidget(QWidget):
         self.recognizer.begin_rec(file=file)
         QApplication.restoreOverrideCursor()
 
-    def recordAudioThread(self):
-        self.recognizer.begin_rec()
+    def recordAudioThread(self, file=None):
+        self.recognizer.begin_rec(file=file)
     
     def speechCallback(self, msg):
         if msg._type == "hlpr_speech_msgs/StampedString":
@@ -129,3 +143,4 @@ class SpeechTestWidget(QWidget):
         item.setText(1, last_string)
         self.currentRootItem.addChild(item)
         self.outputTree.scrollToItem(item)
+        self.waitingOnResult = False
