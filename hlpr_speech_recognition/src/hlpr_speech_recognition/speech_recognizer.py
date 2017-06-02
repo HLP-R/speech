@@ -152,6 +152,10 @@ class SpeechRecognizer():
                 hypothesis = decoder.hyp()
                 maxProb = float("-inf")
                 for seg in decoder.seg():
+                    if seg.prob < -1500:
+                        # Discard suggestions with an absolute probability less than -1500
+                        continue
+
                     thresholdTooLow = False
                     for seg2 in decoder.seg():
                         diff = seg.prob - seg2.prob
