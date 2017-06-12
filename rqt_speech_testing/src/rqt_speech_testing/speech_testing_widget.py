@@ -34,7 +34,8 @@ class SpeechTestWidget(QWidget):
         # Add widget to the user interface
         context.add_widget(self)
 
-        self.recognizer = SpeechRecognizer(subnode=True)
+        self.recognizer = SpeechRecognizer(subnode=True, publishDebug=True)
+
         recog_topic = rospy.get_param("/speech/publish_topic", "hlpr_speech_commands")
         msg_type = eval(rospy.get_param("/speech/command_type", "StampedString")) # True if message is only str, false includes header
         rospy.Subscriber(recog_topic, msg_type, self.speechCallback)

@@ -37,6 +37,7 @@
 # Authors: Baris Akgun
 # Edited: Vivian Chu, 8-29-16: rosparam config values
 
+import json
 import os
 import sys
 import time
@@ -45,11 +46,10 @@ import wave
 import pyaudio
 import rospkg
 import rospy
+from hlpr_speech_msgs.msg import SpeechCommand, StampedString
 from pocketsphinx.pocketsphinx import *
 from sphinxbase.sphinxbase import *
 from std_msgs.msg import String
-
-from hlpr_speech_msgs.msg import SpeechCommand, StampedString
 
 from .speech_listener import SpeechListener
 
@@ -60,7 +60,7 @@ BUFFER_SIZE = 6144
 
 class SpeechRecognizer():
 
-    def __init__(self, subnode = False):
+    def __init__(self, subnode=False, publishDebug=False):
 
         if not subnode:
             # Intialize the node
@@ -106,11 +106,15 @@ class SpeechRecognizer():
         if not self.verbose:
             self.config.set_string("-logfn","/dev/null")
 
-        # Setup the publisher
+        # Setup the publisher(s)
         if self.str_msg == "String":
             self.pub = rospy.Publisher(self.cmd_pub_topic, String, queue_size=1)
         else:
             self.pub = rospy.Publisher(self.cmd_pub_topic, StampedString, queue_size=1)
+        
+        self.publishDebug = publishDebug
+        if publishDebug:
+            self.debugPub = rospy.Publisher("{}_debug".format(default_pub_topic), String)
 
         rospy.loginfo("Finished initializing speech recognizer")
 
@@ -169,12 +173,21 @@ class SpeechRecognizer():
                         selectedSegment = seg
                         maxProb = seg.prob
                 if self.verbose:
-                    print ([(seg.word, seg.prob, seg.start_frame, seg.end_frame) for seg in decoder.seg()])
+                    if self.publishDebug:
+                        self.debugPub.publish(json.dumps([
+                            {"word": seg.word, "probability": seg.prob, "start": seg.start_frame, "end": seg.end_frame}
+                            for seg in decoder.seg()
+                        ]))
+                    print([(seg.word, seg.prob, seg.start_frame, seg.end_frame) for seg in decoder.seg()])
 
                 if selectedSegment:
                     if not hypothesis.hypstr == selectedSegment.word:
+                        if self.publishDebug:
+                            self.debugPub.publish(json.dumps({
+                                "message": "Hypothesis and the selected segment do not match! Going with the selected segment"
+                            }))
                         print "Hypothesis and the selected segment do not match! Going with the selected segment"
-
+                    
                     print ("Detected keyword: " + selectedSegment.word)
                     # Get the time stamp for the message
                     now = rospy.get_rostime()
