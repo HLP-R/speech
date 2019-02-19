@@ -1,0 +1,15 @@
+<library path="src">
+    <class name="HLP-R Speech Recognition"
+        type="rqt_speech_testing.speech_testing.SpeechTest"
+        base_class_type="rqt_gui_py::Plugin">
+        <description>
+            TODO
+        </description>
+        <qtgui>
+            <!-- Optional grouping -->
+            <label>HLP-R Speech Recognition Testing</label>
+            <icon type="theme">applications-other</icon>
+            <statustip>HLP-R Speech Recognition Testing</statustip>
+        </qtgui>
+    </class>
+</library>

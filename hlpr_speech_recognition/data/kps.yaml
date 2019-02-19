@@ -8,7 +8,7 @@ tag: "SMALL_TALK"
 speech: ["HOW ARE YOU TODAY?"]
 ---
 tag: "START_EXP"
-speech: ["LET'S BEGIN THE EXPERIMENT"]
+speech: ["LET'S START"]
 ---
 tag: "OPEN_HAND"
 speech: ["OPEN YOUR HAND"]
@@ -30,3 +30,6 @@ speech: ["END HERE","FINISH HERE"]
 ---
 tag: "KEYFRAME"
 speech: ["GO HERE"]
+---
+tag: "UNKNOWN"
+speech: ["UNKNOWN"]

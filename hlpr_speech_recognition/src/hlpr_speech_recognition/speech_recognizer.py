@@ -31,20 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# A script to use pocketsphinx's "keyphrase spotting" feature with 
+# A script to use pocketsphinx's "keyphrase spotting" feature with
 # python and ros. Note that it
 #
-# Authors: Baris Akgun 
+# Authors: Baris Akgun
 # Edited: Vivian Chu, 8-29-16: rosparam config values
 
-import rospy
-from std_msgs.msg import String
-from hlpr_speech_msgs.msg import StampedString, SpeechCommand
-import sys, os
-from pocketsphinx.pocketsphinx import *
-from sphinxbase.sphinxbase import *
+import json
+import os
+import sys
+import time
+import wave
+
 import pyaudio
 import rospkg
+import rospy
+from hlpr_speech_msgs.msg import SpeechCommand, StampedString
+from pocketsphinx.pocketsphinx import *
+from sphinxbase.sphinxbase import *
+from std_msgs.msg import String
+
 from .speech_listener import SpeechListener
 
 # Global values specific to speech
@@ -54,119 +60,164 @@ BUFFER_SIZE = 6144
 
 class SpeechRecognizer():
 
-  def __init__(self):
+    def __init__(self, subnode=False, publishDebug=False):
 
-    # Intialize the node
-    rospy.init_node("hlpr_speech_recognizer")
+        if not subnode:
+            # Intialize the node
+            rospy.init_node("hlpr_speech_recognizer")
 
-    # get an instance of RosPack with the default search paths
-    rospack = rospkg.RosPack()
+        # Get an instance of RosPack with the default search paths
+        rospack = rospkg.RosPack()
 
-    # Default data files for speech dictionaries
-    default_modeldir = "/usr/local/share/pocketsphinx/model"
-    default_dict_path = rospack.get_path('hlpr_speech_recognition') + '/data/kps.dic'
-    default_kps_path = rospack.get_path('hlpr_speech_recognition') + '/data/kps.txt'
-    default_rec_thresh = 300  #higher reduces false positives but makes it harder to detect
-    default_pub_topic = 'hlpr_speech_commands'
+        # Default data files for speech dictionaries
+        default_modeldir = "/usr/local/share/pocketsphinx/model"
+        default_dict_path = rospack.get_path("hlpr_speech_recognition") + "/data/kps.dic"
+        default_kps_path = rospack.get_path("hlpr_speech_recognition") + "/data/kps.txt"
+        default_rec_thresh = 300  #higher reduces false positives but makes it harder to detect
+        default_pub_topic = "hlpr_speech_commands"
 
-    # Load model and dictionary values from param server
-    modeldir = rospy.get_param("~model_dir", default_modeldir)
-    dict_path = rospy.get_param("~dict_path", default_dict_path)
-    kps_path = rospy.get_param("~kps_path", default_kps_path)
-    self.verbose = rospy.get_param("/speech/verbose", True) # default prints out more info
-    self.str_msg = rospy.get_param(SpeechListener.COMMAND_TYPE, 'StampedString') # True if message is only str, false includes header
-    self.cmd_pub_topic = rospy.get_param(SpeechListener.COMMAND_TOPIC_PARAM, default_pub_topic)
-   
-    # Parameters for recognition
-    self.RECOGNITION_THRESHOLD = rospy.get_param("/speech/rec_thresh", default_rec_thresh)
+        # Load model and dictionary values from param server
+        modeldir = rospy.get_param("~model_dir", default_modeldir)
+        dict_path = rospy.get_param("~dict_path", default_dict_path)
+        kps_path = rospy.get_param("~kps_path", default_kps_path)
+        self.verbose = rospy.get_param("/speech/verbose", True) # default prints out more info
+        self.str_msg = rospy.get_param(SpeechListener.COMMAND_TYPE, "StampedString") # True if message is only str, false includes header
+        self.cmd_pub_topic = rospy.get_param(SpeechListener.COMMAND_TOPIC_PARAM, default_pub_topic)
 
-    # Create a decoder with certain model
-    self.config = Decoder.default_config()
-    self.config.set_string('-hmm', os.path.join(modeldir, 'en-us/en-us'))
+        # Parameters for recognition
+        self.RECOGNITION_THRESHOLD = rospy.get_param("/speech/rec_thresh", default_rec_thresh)
 
-    # Configure the dictionary - not used?
-    #lm_path = rospack.get_path('hlpr_speech_recognition') + '/data/kps.lm'
-    #self.config.set_string('-lm', lm_path)
+        # Create a decoder with certain model
+        self.config = Decoder.default_config()
+        self.config.set_string("-hmm", os.path.join(modeldir, "en-us/en-us"))
 
-    # Configuration settings for speech detection
-    self.config.set_string('-dict', dict_path)
-    self.config.set_string('-kws', kps_path) #A file with keyphrases to spot, one per line
-    self.config.set_float('-kws_threshold', 1e-2) #Threshold for p(hyp)/p(alternatives) ratio
-    self.config.set_float('-kws_plp',1e-10 ) #Phone loop probability for keyword spotting
-    #self.config.set_float('-kws_delay', 1) #Delay to wait for best detection score
-   
-    # Check if we dump extra information to null 
-    if not self.verbose:
-      self.config.set_string('-logfn','/dev/null')
-   
-    # Setup the publisher 
-    if self.str_msg == 'String':
-      self.pub = rospy.Publisher(self.cmd_pub_topic, String, queue_size=1)
-    else:
-      self.pub = rospy.Publisher(self.cmd_pub_topic, StampedString, queue_size=1)
+        # Configure the dictionary - not used?
+        #lm_path = rospack.get_path("hlpr_speech_recognition") + "/data/kps.lm"
+        #self.config.set_string("-lm", lm_path)
 
-    rospy.loginfo("Finished initializing speech recognizer")
+        # Configuration settings for speech detection
+        self.config.set_string("-dict", dict_path)
+        self.config.set_string("-kws", kps_path) #A file with keyphrases to spot, one per line
+        self.config.set_float("-kws_threshold", 1e-2) #Threshold for p(hyp)/p(alternatives) ratio
+        self.config.set_float("-kws_plp",1e-10 ) #Phone loop probability for keyword spotting
+        #self.config.set_float("-kws_delay", 1) #Delay to wait for best detection score
 
-    # Start recognizing
-    self.begin_rec()
+        # Check if we dump extra information to null
+        if not self.verbose:
+            self.config.set_string("-logfn","/dev/null")
 
-  def begin_rec(self):
-
-    p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16,
-                    channels=N_CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=BUFFER_SIZE)
-    stream.start_stream()
-
-    # Process audio chunk by chunk. On keyword detected perform action and restart search
-    decoder = Decoder(self.config)
-    decoder.start_utt()
-
-    while not rospy.is_shutdown():
-      selectedSegment = None
-      buf = stream.read(BUFFER_SIZE)
-      if buf:
-        decoder.process_raw(buf, False, False)
-      else:
-        break
-      if decoder.hyp() != None:
-        hypothesis = decoder.hyp()
-        maxProb = 0
-        for seg in decoder.seg():
-          if seg.prob > maxProb:
-            selectedSegment = seg
-            maxProb = seg.prob
-        if self.verbose:
-          print ([(seg.word, seg.prob, seg.start_frame, seg.end_frame) for seg in decoder.seg()])
-
-        if selectedSegment:
-          if selectedSegment.prob > self.RECOGNITION_THRESHOLD:
-            if not hypothesis.hypstr == selectedSegment.word:
-              print "Hypothesis and the selected segment do not match! Going with the selected segment"
-            
-            print ("Detected keyword: " + selectedSegment.word)
-            # Get the time stamp for the message
-            now = rospy.get_rostime()
-            
-            if self.str_msg == 'String':
-              keyphrase = selectedSegment.word
-            else:
-              keyphrase = StampedString()
-              keyphrase.keyphrase = selectedSegment.word
-              keyphrase.stamp = rospy.get_rostime()
-
-            self.pub.publish(keyphrase)
-          elif self.verbose:
-            print "Not confident enough in the detected keyword"
+        # Setup the publisher(s)
+        if self.str_msg == "String":
+            self.pub = rospy.Publisher(self.cmd_pub_topic, String, queue_size=1)
         else:
-          print 'No Selected Segment'
+            self.pub = rospy.Publisher(self.cmd_pub_topic, StampedString, queue_size=1)
+        
+        self.publishDebug = publishDebug
+        if publishDebug:
+            self.debugPub = rospy.Publisher("{}_debug".format(default_pub_topic), String)
 
-        decoder.end_utt()
+        rospy.loginfo("Finished initializing speech recognizer")
+
+        # Start recognizing
+        if not subnode:
+            self.begin_rec()
+        self.should_stop_recording = False
+
+    def begin_rec(self, file = None):
+        self.should_stop_recording = False
+        if file:
+            # Audio input from file
+            stream = open(file, "rb")
+            rospy.loginfo("Loading audio data from {}".format(file))
+        else:
+            # Audio input from microphone
+            p = pyaudio.PyAudio()
+            stream = p.open(format=pyaudio.paInt16,
+                                            channels=N_CHANNELS,
+                                            rate=RATE,
+                                            input=True,
+                                            frames_per_buffer=BUFFER_SIZE)
+            stream.start_stream()
+            rospy.loginfo("Recording live audio")
+
+        # Process audio chunk by chunk. On keyword detected perform action and restart search
+        decoder = Decoder(self.config)
         decoder.start_utt()
 
-if __name__ == '__main__':
-  SpeechRecognizer()
-   
-  
+        while not rospy.is_shutdown() and not self.should_stop_recording:
+            selectedSegment = None
+            buf = stream.read(BUFFER_SIZE)
+
+            if buf:
+                decoder.process_raw(buf, False, False)
+            else:
+                break
+            if decoder.hyp() != None:
+                hypothesis = decoder.hyp()
+                maxProb = float("-inf")
+                for seg in decoder.seg():
+                    if seg.prob < -1500:
+                        # Discard suggestions with an absolute probability less than -1500
+                        continue
+
+                    thresholdTooLow = False
+                    for seg2 in decoder.seg():
+                        diff = seg.prob - seg2.prob
+                        if diff != 0 and diff < self.RECOGNITION_THRESHOLD:
+                            thresholdTooLow = True
+                            break
+                    if thresholdTooLow:
+                        continue
+
+                    if seg.prob > maxProb:
+                        selectedSegment = seg
+                        maxProb = seg.prob
+                if self.verbose:
+                    if self.publishDebug:
+                        self.debugPub.publish(json.dumps([
+                            {"word": seg.word, "probability": seg.prob, "start": seg.start_frame, "end": seg.end_frame}
+                            for seg in decoder.seg()
+                        ]))
+                    print([(seg.word, seg.prob, seg.start_frame, seg.end_frame) for seg in decoder.seg()])
+
+                if selectedSegment:
+                    if not hypothesis.hypstr == selectedSegment.word:
+                        if self.publishDebug:
+                            self.debugPub.publish(json.dumps({
+                                "message": "Hypothesis and the selected segment do not match! Going with the selected segment"
+                            }))
+                        print "Hypothesis and the selected segment do not match! Going with the selected segment"
+                    
+                    print ("Detected keyword: " + selectedSegment.word)
+                    # Get the time stamp for the message
+                    now = rospy.get_rostime()
+
+                    if self.str_msg == "String":
+                        keyphrase = selectedSegment.word
+                    else:
+                        keyphrase = StampedString()
+                        keyphrase.keyphrase = selectedSegment.word
+                        keyphrase.stamp = rospy.get_rostime()
+
+                    self.pub.publish(keyphrase)
+                else:
+                    print "No selected segment or not confident enough in the detected keyword"
+
+                    if self.str_msg == "String":
+                        keyphrase = "UNKNOWN"
+                    else:
+                        keyphrase = StampedString()
+                        keyphrase.keyphrase = "UNKNOWN"
+                        keyphrase.stamp = rospy.get_rostime()
+
+                    self.pub.publish(keyphrase)
+
+                decoder.end_utt()
+                decoder.start_utt()
+        rospy.loginfo("Stopped speech recognition")
+
+    def end_rec(self):
+        self.should_stop_recording = True
+
+if __name__ == "__main__":
+    SpeechRecognizer()
